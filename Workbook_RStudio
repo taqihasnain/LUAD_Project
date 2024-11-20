@@ -1,0 +1,107 @@
+R CODE
+
+# Further processing data from UCSC Xena
+
+fpkm_data <- read.delim("TCGA-LUAD.star_fpkm.tsv", header = TRUE, sep = "\t")
+fpkm_subset <- fpkm_data[, c(1, 2:11)]
+fpkm_subset$mean_expression <- rowMeans(fpkm_subset[,-1])
+top_genes <- fpkm_subset[order(-fpkm_subset$mean_expression), ][1:50, ]
+write.table(top_genes, "subset_top_genes.tsv", sep="\t", row.names=FALSE)
+
+
+# Checking the structure
+str(top_genes)
+
+# Previewing the first few rows
+head(top_genes)
+
+# Summary statistics
+summary(top_genes)
+
+
+# Bar plot for the mean expression of the top 10 genes
+barplot(top_genes$mean_expression[1:10],
+        names.arg = top_genes$Ensembl_ID[1:10], # Use Ensembl_ID for labels
+        las = 2, # Rotate labels for better readability
+        col = "blue",
+        main = "Top 10 Highly Expressed Genes",
+        ylab = "Mean Expression (FPKM)",
+        cex.names = 0.7) # Adjust label size for clarity
+
+
+
+install.packages("pheatmap")
+
+library(pheatmap)
+
+
+# Subset only expression data
+expression_matrix <- as.matrix(top_genes[, 2:11]) 
+rownames(expression_matrix) <- top_genes$Gene
+
+# Create heatmap
+pheatmap(expression_matrix, 
+         cluster_rows = TRUE, 
+         cluster_cols = TRUE, 
+         main = "Expression Heatmap of Top Genes")
+
+
+# Filter genes with mean expression above threshold (>5 FPKM)
+filtered_genes <- top_genes[top_genes$mean_expression > 5, ]
+
+# Calculate variance for each gene across samples
+variances <- apply(top_genes[, 2:11], 1, var)
+
+# Add variance as a new column
+top_genes$variance <- variances
+
+# Sort genes by variance in descending order
+top_genes_high_var <- top_genes[order(-top_genes$variance), ][1:10, ]
+
+# Display the top 10 genes with the highest variance
+print(top_genes_high_var)
+
+# Bar plot of variances for the top 10 high-variance genes
+barplot(top_genes_high_var$variance,
+        names.arg = top_genes_high_var$Ensembl_ID,
+        las = 2, col = "orange",
+        main = "Variance of Top 10 Genes",
+        ylab = "Variance",
+        cex.names = 0.7)  # Adjust font size for the labels
+
+
+# Create a matrix for the top 10 high-variance genes
+high_var_matrix <- as.matrix(top_genes_high_var[, 2:11])
+
+# Generate a heatmap
+pheatmap(high_var_matrix,
+         cluster_rows = TRUE,
+         cluster_cols = TRUE,
+         main = "Expression Heatmap of Top 10 High-Variance Genes",
+         color = colorRampPalette(c("blue", "white", "red"))(50))
+
+
+# Sorting top genes by mean expression
+top_genes_mean <- top_genes[order(-top_genes$mean_expression), ]
+top_3_by_mean <- top_genes_mean[1:3, ]
+
+# View the top 3 genes by mean expression
+print(top_3_by_mean)
+
+
+# Sorting top genes by variance
+top_genes_variance <- top_genes[order(-top_genes$variance), ]
+top_3_by_variance <- top_genes_variance[1:3, ]
+
+# View the top 3 genes by variance
+print(top_3_by_variance)
+
+
+# Combine the top 3 genes by mean expression and top 3 genes by variance
+top_genes_combined <- rbind(top_3_by_mean, top_3_by_variance)
+
+# Remove duplicates (if any) and show the unique genes
+top_genes_combined <- unique(top_genes_combined)
+
+# View the final list of genes for discussion
+print(top_genes_combined)
